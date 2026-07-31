@@ -1,0 +1,49 @@
+# Single-instance unit for the /tec/cuda/aiphoneagent deployment.
+#   sudo cp deploy/voice-agent.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now voice-agent
+#   journalctl -u voice-agent -f
+#
+# Runs as root (matches the manual runs). Reads .env from WorkingDirectory.
+
+[Unit]
+Description=TecAI Voice Agent
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=/tec/cuda/aiphoneagent
+
+# systemd has a minimal env. faster-whisper (ctranslate2) needs CUDA on the
+# library path, and HF/torch caches live under HOME — set both so it matches
+# the interactive shell that worked.
+Environment=HOME=/root
+Environment=CUDA_HOME=/usr/local/cuda-12.4
+Environment=PATH=/usr/local/cuda-12.4/bin:/usr/bin:/bin
+Environment=LD_LIBRARY_PATH=/usr/local/cuda-12.4/lib64:/usr/lib64
+
+# The agent uses the local GPU for faster-whisper and XTTS. The LLM runs on the
+# 2x B70s under vLLM (Docker, 127.0.0.1:8000) — those are NOT CUDA devices and
+# are never selected here.
+# ⚠️ tecai1 has exactly ONE CUDA GPU (RTX 5070) — verify with `nvidia-smi -L`
+# before changing this. Any 0-3 / 4 / 5 GPU split in older docs describes the
+# retired V100 box, NOT this host. Setting a device that does not exist makes
+# CUDA report zero devices and faster-whisper dies with "CTranslate2 sees no
+# CUDA devices".
+# CUDA_VISIBLE_DEVICES *remaps*: the selected GPU becomes ordinal 0 inside the
+# process, so ASR_DEVICE_INDEX=0 in .env is correct regardless of what is set here.
+Environment=CUDA_VISIBLE_DEVICES=0
+
+# pydantic-settings reads ./.env relative to WorkingDirectory by default.
+ExecStart=/tec/cuda/aiphoneagent/.venv/bin/python -m voice_agent.main
+
+Restart=on-failure
+RestartSec=3
+LimitNOFILE=65536
+LimitMEMLOCK=infinity
+
+[Install]
+WantedBy=multi-user.target

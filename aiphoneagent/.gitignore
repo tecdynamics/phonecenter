@@ -1,0 +1,20 @@
+# Secrets — never commit filled configs
+.env
+clients/*.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Models / runtime artifacts
+*.wav
+*.log
+
+# Backups of filled configs (the .env rule matches only the exact name)
+.env.*
+!.env.example
+*.bak
+*.bak-*

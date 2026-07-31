@@ -1,0 +1,30 @@
+# ── Secrets — never commit filled configs ──────────────────────────────────
+.env
+.env.*
+!.env.example
+clients/*.env
+*.bak
+*.bak-*
+
+# ── Third-party source (rebuilt from upstream, see aiphoneagent/README.md) ──
+/pjproject/
+
+# ── Voice reference samples: cloning material, keep off GitHub ─────────────
+/voices/
+*.wav
+
+# ── Python environments and caches ─────────────────────────────────────────
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# ── Editor / tooling ───────────────────────────────────────────────────────
+.idea/
+.claude/
+
+# ── Runtime artifacts ──────────────────────────────────────────────────────
+*.log
+/media/
+/hf-cache/

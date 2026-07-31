@@ -1,0 +1,27 @@
+# ── TecAI Voice Agent — Phase 1 runtime deps ──────────────────────────────
+# Target: Python 3.11+ on AlmaLinux (server). Pin before deploy.
+#
+# NOTE: pjsua2 (PJSIP Python bindings) is NOT pip-installable. Build it from
+# PJSIP source with the Python SWIG bindings on the server. See README §SIP.
+
+numpy==2.1.3
+soxr==0.5.0.post1          # high-quality 8k<->16k resampling
+httpx==0.27.2             # async client for XTTS + (later) Gemma/e5
+faster-whisper==1.1.1     # ASR (CTranslate2; runs on V100). >=1.1.0 needed for large-v3-turbo
+requests==2.32.3          # imported by faster-whisper.utils at import time (not always auto-pulled)
+silero-vad==5.1.2         # VAD endpointing (behind an interface; swappable)
+# speexdsp (AEC) has NO py3.12 build at 0.1.2.post1 (max is 0.1.1). It's OPTIONAL
+# — the AEC layer no-ops with a warning if missing, and barge-in is off until
+# validated anyway. The installer attempts 0.1.1 separately, non-fatally.
+# speexdsp==0.1.2.post1
+pydantic==2.9.2
+pydantic-settings==2.5.2
+PyYAML==6.0.2
+
+# ── Phase 2 (LLM + barge-in) ───────────────────────────────────────────────
+# Gemma is called directly over the existing llama.cpp OpenAI-compatible
+# endpoint (httpx, above) — no new deps. Barge-in is implemented in the
+# orchestrator via the SIP layer's flush_output(); Pipecat is NOT required.
+#
+# ── Phase 3+ (optional, if we later adopt the full Pipecat pipeline) ───────
+# pipecat-ai==0.0.49      # frame pipeline, VAD/turn-taking, interruption

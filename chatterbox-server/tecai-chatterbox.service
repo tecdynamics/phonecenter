@@ -1,0 +1,74 @@
+[Unit]
+Description=TecAI Chatterbox Multilingual TTS (phone agent, 5070, port 8087)
+After=network.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+# Dedicated box, runs as root (adjust if you make a service user).
+User=root
+Group=root
+WorkingDirectory=/tec/cuda/chatterbox-server
+
+# --- GPU: the 5070 is the only card and is dedicated to ASR+TTS. ---
+Environment="CUDA_VISIBLE_DEVICES=0"
+Environment="CHATTERBOX_DEVICE=cuda"
+
+# ⚠️ KEEP false. Blackwell supports fp16 natively, but this server only casts the
+# BACKBONE — with voice cloning the speaker-conditioning embeddings stay fp32 and
+# hit fp16 weights in a matmul, so every request 500s with:
+#   "mat1 and mat2 must have the same dtype, but got Float and Half"
+# Verified on 2026-07-31. Do not flip this without also casting the conditioning
+# path (see _load_model / the audio_prompt embedding in server.py).
+Environment="CHATTERBOX_FP16=false"
+# torch.compile tracing has crashed on fresh torch builds — keep disabled.
+Environment="TORCHDYNAMO_DISABLE=1"
+
+# Default checkpoint is already the 23-language multilingual one (incl. Greek).
+Environment="CHATTERBOX_LANG=en"
+Environment="CHATTERBOX_T3_MODEL="
+
+# Voice CONSISTENCY (same woman every call) + calmer pacing:
+Environment="CHATTERBOX_TEMPERATURE=0.5"
+Environment="CHATTERBOX_CFG_WEIGHT=0.6"
+Environment="CHATTERBOX_EXAGGERATION=0.4"
+Environment="TTS_SPEED=0.9"
+
+# Voice store (staged from the main box). One female voice per language:
+#   English -> en_female_1.wav ; Greek text auto-routes -> el_female_1.wav
+Environment="DEFAULT_SPEAKER_WAV=/tec/cuda/voices/default_speaker.wav"
+Environment="VOICES_DIR=/tec/cuda/voices"
+Environment="PRESET_VOICES_DIR=/tec/cuda/voices/presets"
+Environment="TTS_LOCK_VOICE=en_female_1"
+Environment="TTS_VOICE_EL=el_female_1"
+
+# Output post-processing: 8kHz phone rate + silence trim (the agent resamples too).
+Environment="TTS_OUTPUT_SAMPLE_RATE=8000"
+Environment="TTS_TRIM_SILENCE=true"
+Environment="TTS_MIN_SILENCE=0.18"
+Environment="TTS_MAX_GAP=0.08"
+# -40 dB was clipping the first 2-3 letters: speech onsets (s, f, th, plosive
+# attacks) start quieter than that, so silenceremove discarded them as silence.
+# -55 keeps the onset while still trimming genuine dead air.
+Environment="TTS_SILENCE_THRESHOLD_DB=-55"
+Environment="MEDIA_DIR=/tec/cuda/media/audio"
+
+# Canonical TTS port the phone agent calls (XTTS_ENDPOINT=http://127.0.0.1:8087).
+Environment="CHATTERBOX_PORT=8087"
+# torch cu128 wheels bundle their own CUDA — no system toolkit / cuda-12.4 paths.
+Environment="PATH=/tec/cuda/chatterbox-server/.venv/bin:/usr/bin:/bin"
+Environment="HF_HOME=/tec/cuda/hf-cache"
+
+ExecStart=/tec/cuda/chatterbox-server/.venv/bin/python server.py
+
+Restart=always
+RestartSec=10
+TimeoutStopSec=25
+KillMode=control-group
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=chatterbox-tts
+
+[Install]
+WantedBy=multi-user.target

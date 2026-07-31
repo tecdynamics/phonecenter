@@ -1,0 +1,16 @@
+# Chatterbox pilot deps.
+#
+# IMPORTANT (V100): install torch FIRST from the cu124 wheel, BEFORE this file,
+# or pip will pull a default torch that's too new for the 12.4 driver (same trap
+# the VoxCPM server hit). See README.md:
+#   pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu124
+#
+chatterbox-tts
+fastapi
+uvicorn[standard]
+pydantic>=2
+python-multipart   # required by FastAPI for /v1/audio/clone file uploads
+soundfile          # PCM streaming fallback (reads wav bytes)
+soxr               # artifact-free chunked resampling for /stream
+# torch / torchaudio: DO NOT add here — installed separately with the cu124 index.
+# numpy comes in via torch/chatterbox; add explicitly only if a clean import fails.
